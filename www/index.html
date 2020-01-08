@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html>
+<!--
+This is an app that demonstrates how to control an Arduio board
+using BLE (Bluetooth Low Energy).
+Please note that you must use a BLE shield for this example to work.
+-->
+<head>
+
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, user-scalable=no,
+		shrink-to-fit=no, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0" />
+
+	<title>Salli route</title>
+
+	<style>
+		@import 'ui/css/evothings-app.css';
+	</style>
+
+	<script>
+	// Redirect console.log to Evothings Workbench.
+	if (window.hyper && window.hyper.log) { console.log = hyper.log }
+	window.onerror = function(msg, url, line)
+	{
+		console.log(msg + ": " + url + ":" + line);
+	};
+	</script>
+
+	<script src="cordova.js"></script>
+	<script src="libs/jquery/jquery.js"></script>
+	<script src="libs/evothings/evothings.js"></script>
+	<script src="libs/evothings/ui/ui.js"></script>
+	<script src="libs/evothings/arduinoble/arduinoble.js"></script>
+
+</head>
+
+<body ontouchstart=""><!-- ontouchstart="" enables low-delay CSS transitions. -->
+
+	<header>
+    	<p id="name">Salli route</p>
+	</header>
+
+
+
+	<p id="info">Initializing...</p>
+
+	<button class="yellow wide" onclick="app.connect()">CONNECT</button>
+ 
+
+	<button class="blue" onclick="app.start()">SEND</button>
+	<button class="red" onclick="app.stop()">STOP</button>
+	<button class="green" onclick="app.clear()">CLEAR</button>
+	<br />
+
+	<button id="FORWARD" class="dark" onclick="app.forward_save()">
+        <img src="ui/images/forward.svg" />
+    </button>
+
+	<button id="REVERSE" class="dark" onclick="app.reverse_save()">
+        <img src="ui/images/reverse.svg" />
+    </button>
+
+	<button id="RIGHT" class="dark" onclick="app.right_save()">
+        <img src="ui/images/right.svg" />
+    </button>
+
+	<button id="LEFT" class="dark" onclick="app.left_save()">
+        <img src="ui/images/left.svg" />
+    </button>
+	<br />
+	<button id="LOOP" class="blue" onclick="app.loop_save()">
+        <img src="ui/images/loop.svg" />
+    </button>
+	<br/>
+
+    <input id="NumberLoops"  value="1" type="url"/>
+    <input id="NumberShifts" value="1" type="url"/>
+
+	<br/>
+ 
+	<script>
+	// Application object.
+	var app = {}
+
+	// Connected device.
+	app.device = null;
+    var  route = [];
+    var child = [];
+    var state = {position:0,busy:false,wagon:0,connect:false}
+	app.start = function(){
+		app.device && app.device.writeRoute(route,state);
+        state.busy = true;
+        console.log('writed route');
+		app.device && app.device.read("State",state);
+        setInterval(app.timer, 500);
+        if(child.length>0){
+            child[0].setAttribute("class","green");
+        }
+
+	}
+    app.timer = function(){
+        if(state.connect == true){
+            if(state.busy==false){
+                state.busy = true;
+        		app.device && app.device.read("State",state);
+                console.log('position'+ state.position);
+                if(state.position<child.length){
+                    for (var i=0;i<child.length;++i){
+                        child[i].setAttribute("class","dark");
+                    }
+                    child[state.position].setAttribute("class","green");
+                }
+            }
+        }
+	}
+
+	app.clear = function(){
+        console.log('clear');
+        for (var i=0;i<child.length;++i){
+            document.body.removeChild(child[i]);
+    		console.log('delete child' + child[i] );
+        }
+        route = [];
+        child = [];
+	}
+
+	app.stop = function(){
+		app.device && app.device.writeDataArray(new Uint8Array([0]));
+	}
+
+	app.forward = function(){
+		app.device && app.device.writeDataArray(new Uint8Array([1]));
+	}
+
+	app.reverse = function(){
+		app.device && app.device.writeDataArray(new Uint8Array([2]));
+	}
+
+	app.right = function(){
+		app.device && app.device.writeDataArray(new Uint8Array([3]));
+	}
+
+	app.left = function(){
+		app.device && app.device.writeDataArray(new Uint8Array([4]));
+	}
+
+	app.forward_save = function(){
+        route.push("forward");
+        var btn = document.getElementById("FORWARD");   // Create a <button> element
+        var cln = btn.cloneNode(true);
+        document.body.appendChild(cln);   
+        child.push(cln);
+	}
+
+	app.reverse_save = function(){
+        route.push("reverse");
+        var btn = document.getElementById("REVERSE");   // Create a <button> element
+        var cln = btn.cloneNode(true);
+        document.body.appendChild(cln);   
+        child.push(cln);
+	}
+
+	app.right_save = function(){
+        route.push("right");
+        var btn = document.getElementById("RIGHT");   // Create a <button> element
+        var cln = btn.cloneNode(true);
+        document.body.appendChild(cln);   
+        child.push(cln);
+	}
+
+	app.left_save = function(){
+        route.push("left");
+        var btn = document.getElementById("LEFT");   // Create a <button> element
+        var cln = btn.cloneNode(true);
+        document.body.appendChild(cln);   
+        child.push(cln);
+	}
+
+	app.loop_save = function(){
+        route.push("loop");
+
+        route.push($('#NumberLoops').val());
+        route.push($('#NumberShifts').val());
+        var btn = document.getElementById("LOOP");   // Create a <button> element
+        var cln = btn.cloneNode(true);
+        document.body.appendChild(cln);   
+        child.push(cln);
+	}
+
+
+	app.showMessage = function(info)
+	{
+		document.getElementById('info').innerHTML = info
+	};
+
+	// Called when BLE and other native functions are available.
+	app.onDeviceReady = function()
+	{
+		app.showMessage('Touch the connect button to begin.');
+	};
+
+	app.connect = function()
+	{
+		evothings.arduinoble.close();
+
+		evothings.arduinoble.connect(
+			'roobcontrolcommande', // Name of BLE shield.
+			function(device)
+			{
+				app.device = device;
+                state.connect = true;
+				app.showMessage('Connected!');
+			},
+			function(errorCode)
+			{
+                state.connect = true;
+				app.showMessage('Connect error: ' + errorCode + '.');
+			});
+	};
+
+	document.addEventListener(
+		'deviceready',
+		function() { evothings.scriptsLoaded(app.onDeviceReady) },
+		false);
+	</script>
+
+</body>
+
+</html>
